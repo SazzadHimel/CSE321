@@ -27,3 +27,19 @@ echo helo
 pwd
 asdas
 dcvsd
+pwd
+echo > output.txt
+echo Hola > output.txt
+echo < input.txt
+output.txt < input.txt
+< input.txt
+echo < input.txt
+echo Hello > output.txt
+echo hola >> output.txt
+sort < input.txt
+sort < input.txt
+sort < input.txt | output.txt
+sort < input.txt | echo > output.txt
+echo hi > output.txt
+ echo hola
+ sort < input.txt

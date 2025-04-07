@@ -16,12 +16,13 @@ pid_t current_child = -1;
 
 void handle_sigint(int sig) {
     if (current_child > 0) {
-        kill(current_child, SIGINT);  // terminate the child process
+        kill(current_child, SIGINT);
     } else {
-        interrupted = 1; // mark that input was interrupted
         write(STDOUT_FILENO, "\n", 1);
+        exit(0);
     }
 }
+
 
 void save_history(const char *cmd) {
     FILE *file = fopen(HISTORY_FILE, "a");
@@ -203,7 +204,7 @@ int main() {
     struct sigaction sa;
     sa.sa_handler = handle_sigint;
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART; // restart interrupted syscalls like fgets()
+    sa.sa_flags = SA_RESTART;
     sigaction(SIGINT, &sa, NULL);
 
     char line[MAX_CMD_LEN];
@@ -234,10 +235,10 @@ int main() {
             continue;
         }
     
-        if (interrupted) break;
+        if (interrupted) continue;
         trim_newline(line);
         if (strcmp(line, "") == 0) continue;
-        if (strcmp(line, "exit") == 0) break;
+        if (strcmp(line, "exit") == 0) continue;
     
         parse_and_execute(line);
     }
