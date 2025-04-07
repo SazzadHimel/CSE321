@@ -1,0 +1,8 @@
+total 32
+-rwxrwxrwx 1 sazzad123 sazzad123    31 Apr  5 23:00 history.txt
+-rwxrwxrwx 1 sazzad123 sazzad123     0 Apr  5 23:00 output.txt
+-rwxrwxrwx 1 sazzad123 sazzad123 22976 Apr  5 22:58 shell
+-rwxrwxrwx 1 sazzad123 sazzad123  5017 Apr  4 21:39 shell.c
+"Hello"
+Hello
+Hi

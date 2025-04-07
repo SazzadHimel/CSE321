@@ -1,1 +1,29 @@
 pwd
+ped
+pwd
+ls -l > output.txt
+cat < output.txt | grep shell
+echo "Hello" >> output.txt
+ls
+ echo Done
+ echo one 
+ echo two
+echo hello
+echo Hello
+ ls
+echo hello
+ pwd
+ cat < output.txt
+echo Hello >> output.txt
+echo Hi >> output.txt
+clean
+clear
+dbschsdjh
+echo hello
+safa
+dcas
+saa
+echo helo
+pwd
+asdas
+dcvsd

@@ -5,13 +5,22 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <errno.h>
 
 #define MAX_CMD_LEN 1024
 #define MAX_ARGS 100
 #define HISTORY_FILE "history.txt"
 
+volatile sig_atomic_t interrupted = 0;
+pid_t current_child = -1;
+
 void handle_sigint(int sig) {
-    write(STDOUT_FILENO, "\nCaught CTRL+C\nsh> ", 20);
+    if (current_child > 0) {
+        kill(current_child, SIGINT);  // terminate the child process
+    } else {
+        interrupted = 1; // mark that input was interrupted
+        write(STDOUT_FILENO, "\n", 1);
+    }
 }
 
 void save_history(const char *cmd) {
@@ -29,17 +38,18 @@ void trim_newline(char *str) {
 void exec_cmd(char *cmd);
 
 void execute_piped(char *cmds[], int n) {
-    int i;
-    int pipefd[2], in_fd = 0;
+    int in_fd = 0, pipefd[2];
 
-    for (i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++) {
         pipe(pipefd);
         pid_t pid = fork();
         if (pid == 0) {
-            dup2(in_fd, 0);
-            if (i < n - 1)
-                dup2(pipefd[1], 1);
+            dup2(in_fd, STDIN_FILENO);
+            if (i < n - 1) {
+                dup2(pipefd[1], STDOUT_FILENO);
+            }
             close(pipefd[0]);
+
             char *argv[MAX_ARGS];
             char *token = strtok(cmds[i], " ");
             int j = 0;
@@ -49,10 +59,12 @@ void execute_piped(char *cmds[], int n) {
             }
             argv[j] = NULL;
             execvp(argv[0], argv);
-            perror("execvp failed");
+            perror("execvp");
             exit(1);
         } else {
-            wait(NULL);
+            current_child = pid;
+            waitpid(pid, NULL, 0);
+            current_child = -1;
             close(pipefd[1]);
             in_fd = pipefd[0];
         }
@@ -91,6 +103,7 @@ void handle_redirection(char *cmd) {
     if (pid == 0) {
         if (in != -1) dup2(in, STDIN_FILENO);
         if (out != -1) dup2(out, STDOUT_FILENO);
+
         char *argv[MAX_ARGS];
         char *token = strtok(cmd, " ");
         int i = 0;
@@ -103,8 +116,11 @@ void handle_redirection(char *cmd) {
         perror("execvp");
         exit(1);
     } else {
-        wait(NULL);
+        current_child = pid;
+        waitpid(pid, NULL, 0);
+        current_child = -1;
     }
+
     if (in != -1) close(in);
     if (out != -1) close(out);
 }
@@ -136,7 +152,9 @@ void exec_cmd(char *cmd) {
             perror("execvp");
             exit(1);
         } else {
-            wait(NULL);
+            current_child = pid;
+            waitpid(pid, NULL, 0);
+            current_child = -1;
         }
     }
 }
@@ -164,13 +182,16 @@ void parse_and_execute(char *line) {
             trim_newline(seq_cmds[j]);
             if (strlen(seq_cmds[j]) == 0) continue;
             save_history(seq_cmds[j]);
+
             pid_t pid = fork();
             if (pid == 0) {
                 exec_cmd(seq_cmds[j]);
                 exit(0);
             } else {
+                current_child = pid;
                 int status;
                 waitpid(pid, &status, 0);
+                current_child = -1;
                 if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
                     success = 0;
             }
@@ -179,16 +200,47 @@ void parse_and_execute(char *line) {
 }
 
 int main() {
-    signal(SIGINT, handle_sigint);
+    struct sigaction sa;
+    sa.sa_handler = handle_sigint;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART; // restart interrupted syscalls like fgets()
+    sigaction(SIGINT, &sa, NULL);
+
     char line[MAX_CMD_LEN];
+
     while (1) {
-        printf("sh> ");
+        interrupted = 0;
+    
+        char cwd[1024];
+        char hostname[1024];
+        char *username = getenv("USER");
+        if (username == NULL) username = getenv("LOGNAME");
+    
+        if (gethostname(hostname, sizeof(hostname)) != 0) {
+            strcpy(hostname, "unknown");
+        }
+    
+        if (getcwd(cwd, sizeof(cwd)) != NULL) {
+            printf("%s@%s:%s sh> ", username ? username : "user", hostname, cwd);
+        } else {
+            perror("getcwd");
+            printf("%s@%s sh> ", username ? username : "user", hostname);
+        }
+    
         fflush(stdout);
-        if (!fgets(line, sizeof(line), stdin)) break;
-        if (strcmp(line, "\n") == 0) continue;
+    
+        if (!fgets(line, sizeof(line), stdin)) {
+            if (feof(stdin)) break;
+            continue;
+        }
+    
+        if (interrupted) break;
         trim_newline(line);
+        if (strcmp(line, "") == 0) continue;
         if (strcmp(line, "exit") == 0) break;
+    
         parse_and_execute(line);
     }
+
     return 0;
 }
