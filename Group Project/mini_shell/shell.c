@@ -23,7 +23,6 @@ void handle_sigint(int sig) {
     }
 }
 
-
 void save_history(const char *cmd) {
     FILE *file = fopen(HISTORY_FILE, "a");
     if (file) {
@@ -40,11 +39,17 @@ void exec_cmd(char *cmd);
 
 void execute_piped(char *cmds[], int n) {
     int in_fd = 0, pipefd[2];
-
     for (int i = 0; i < n; i++) {
         pipe(pipefd);
         pid_t pid = fork();
-        if (pid == 0) {
+        if (pid > 0) {
+            current_child = pid;
+            waitpid(pid, NULL, 0);
+            current_child = -1;
+            close(pipefd[1]);
+            in_fd = pipefd[0];
+
+        } else if (pid == 0) {
             dup2(in_fd, STDIN_FILENO);
             if (i < n - 1) {
                 dup2(pipefd[1], STDOUT_FILENO);
@@ -62,12 +67,9 @@ void execute_piped(char *cmds[], int n) {
             execvp(argv[0], argv);
             perror("execvp");
             exit(1);
+            
         } else {
-            current_child = pid;
-            waitpid(pid, NULL, 0);
-            current_child = -1;
-            close(pipefd[1]);
-            in_fd = pipefd[0];
+            perror("error");
         }
     }
 }
@@ -101,10 +103,14 @@ void handle_redirection(char *cmd) {
     }
 
     pid_t pid = fork();
-    if (pid == 0) {
+    if (pid > 0) {
+        current_child = pid;
+        waitpid(pid, NULL, 0);
+        current_child = -1;
+
+    } else if (pid == 0) {
         if (in != -1) dup2(in, STDIN_FILENO);
         if (out != -1) dup2(out, STDOUT_FILENO);
-
         char *argv[MAX_ARGS];
         char *token = strtok(cmd, " ");
         int i = 0;
@@ -116,10 +122,9 @@ void handle_redirection(char *cmd) {
         execvp(argv[0], argv);
         perror("execvp");
         exit(1);
+        
     } else {
-        current_child = pid;
-        waitpid(pid, NULL, 0);
-        current_child = -1;
+        perror("error");
     }
 
     if (in != -1) close(in);
@@ -127,7 +132,10 @@ void handle_redirection(char *cmd) {
 }
 
 void exec_cmd(char *cmd) {
-    if (strchr(cmd, '|')) {
+    if (strchr(cmd, '<') || strchr(cmd, '>')) {
+        handle_redirection(cmd);
+
+    } else if (strchr(cmd, '|')) {
         char *cmds[10];
         int n = 0;
         char *token = strtok(cmd, "|");
@@ -136,11 +144,15 @@ void exec_cmd(char *cmd) {
             token = strtok(NULL, "|");
         }
         execute_piped(cmds, n);
-    } else if (strchr(cmd, '<') || strchr(cmd, '>')) {
-        handle_redirection(cmd);
+
     } else {
         pid_t pid = fork();
-        if (pid == 0) {
+        if (pid > 0) {
+            current_child = pid;
+            waitpid(pid, NULL, 0);
+            current_child = -1;
+
+        } else if (pid == 0) {
             char *argv[MAX_ARGS];
             char *token = strtok(cmd, " ");
             int i = 0;
@@ -152,16 +164,15 @@ void exec_cmd(char *cmd) {
             execvp(argv[0], argv);
             perror("execvp");
             exit(1);
+
         } else {
-            current_child = pid;
-            waitpid(pid, NULL, 0);
-            current_child = -1;
+            perror("error");
         }
     }
 }
 
 void parse_and_execute(char *line) {
-    char *commands[100];
+    char *commands[321];
     int n = 0;
     char *token = strtok(line, ";");
     while (token) {
@@ -211,7 +222,6 @@ int main() {
 
     while (1) {
         interrupted = 0;
-    
         char cwd[1024];
         char hostname[1024];
         char *username = getenv("USER");
@@ -222,14 +232,13 @@ int main() {
         }
     
         if (getcwd(cwd, sizeof(cwd)) != NULL) {
-            printf("%s@%s:%s sh> ", username ? username : "user", hostname, cwd);
+            printf("\033[1;32m%s@%s\033[0m:\033[1;34m%s\033[0m sh> ", username ? username : "user", hostname, cwd);
         } else {
             perror("getcwd");
-            printf("%s@%s sh> ", username ? username : "user", hostname);
+            printf("\033[1;32m%s@%s\033[0m sh> ", username ? username : "user", hostname);
         }
-    
+
         fflush(stdout);
-    
         if (!fgets(line, sizeof(line), stdin)) {
             if (feof(stdin)) break;
             continue;

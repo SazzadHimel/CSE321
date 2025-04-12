@@ -43,3 +43,55 @@ sort < input.txt | echo > output.txt
 echo hi > output.txt
  echo hola
  sort < input.txt
+sd
+echo hello
+pwd
+bfasjd
+ehco hello
+ echo hi
+echo hello
+ echo hi
+echo hello
+ echo hi
+echo eadas; echo dasjd
+    sdsd
+casc
+hjvhcashcvkj]
+sdcbhasd
+saJHBasjhbkCSS
+VVHJDVFJKSVFHAVJK
+hbsdjhasjdasd
+sdkjjfjkasd
+pwd
+echo hello
+echo helo
+echo helpo
+pwd
+echo s
+echo helo
+ashdkaj
+echo sa
+echo ahdka
+echo helo
+pwd
+pwd
+pwd
+echo helo 
+ echo hi
+echo hi 
+ pwd
+echo hi
+ pwd
+echo sakdfaksdfkjasd > output.txt
+echo dajsbdkjabskjask >> output.txt
+echo sakdfaksdfkjasd > output.txt
+ehco sajdkaj
+ pwd
+ehco asbdajks 
+ pwd
+ehco daskd 
+ echo asdka
+ehco asbdasj 
+ pwd
+ehco asjbjdkjak
+ pwd
